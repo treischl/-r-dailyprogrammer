@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Drawing;
+﻿using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 
-// Adapted a lot of code from https://github.com/cyotek/Dithering
-namespace _272_dither_that_image
+namespace dither_that_image
 {
     class Program
     {
@@ -101,9 +95,9 @@ namespace _272_dither_that_image
                     current = pixels[col, row];
                     bool isBlack = (byte)(0.299 * current.R + 0.587 * current.G + 0.114 * current.B) < 127;
                     transformed = isBlack ? new ArgbColor(current.A, 0, 0, 0) : new ArgbColor(current.A, 255, 255, 255);
-                    
+
                     pixels[col, row] = transformed;
-                    
+
                     var errors = new
                     {
                         R = current.R - transformed.R,

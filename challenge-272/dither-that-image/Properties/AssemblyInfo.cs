@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("272-whats-in-the-bag")]
+[assembly: AssemblyTitle("dither-that-image")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Microsoft")]
-[assembly: AssemblyProduct("272-whats-in-the-bag")]
+[assembly: AssemblyProduct("dither-that-image")]
 [assembly: AssemblyCopyright("Copyright © Microsoft 2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("c2daf61a-067c-4de1-9f1e-da3956e6d9d3")]
+[assembly: Guid("0db285fe-0364-4c9b-a839-7816c989eb26")]
 
 // Version information for an assembly consists of the following four values:
 //

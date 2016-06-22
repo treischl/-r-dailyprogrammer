@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "272-whats-in-the-bag", "272-whats-in-the-bag\272-whats-in-the-bag.csproj", "{C2DAF61A-067C-4DE1-9F1E-DA3956E6D9D3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "whats-in-the-bag", "challenge-272\whats-in-the-bag\whats-in-the-bag.csproj", "{C2DAF61A-067C-4DE1-9F1E-DA3956E6D9D3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "272-dither-that-image", "272-dither-that-image\272-dither-that-image.csproj", "{029F4E4A-C347-4C0E-8666-3859CB1CAA11}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dither-that-image", "challenge-272\dither-that-image\dither-that-image.csproj", "{029F4E4A-C347-4C0E-8666-3859CB1CAA11}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "challenge-272", "challenge-272", "{98FB15A2-703F-4414-BEA7-F06742480D0F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,5 +26,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{C2DAF61A-067C-4DE1-9F1E-DA3956E6D9D3} = {98FB15A2-703F-4414-BEA7-F06742480D0F}
+		{029F4E4A-C347-4C0E-8666-3859CB1CAA11} = {98FB15A2-703F-4414-BEA7-F06742480D0F}
 	EndGlobalSection
 EndGlobal

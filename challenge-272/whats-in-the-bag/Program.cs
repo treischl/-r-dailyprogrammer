@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace _272_whats_in_the_bag
+namespace whats_in_the_bag
 {
     class Program
     {
