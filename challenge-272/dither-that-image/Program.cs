@@ -1,6 +1,7 @@
 ﻿using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System;
 
 namespace dither_that_image
 {
@@ -23,10 +24,10 @@ namespace dither_that_image
 
         static Offset[] offsets = new Offset[]
         {
-            new Offset(1, 0, 7),
-            new Offset(-1, 1, 3),
-            new Offset(0, 1, 5),
-            new Offset(1, 1, 1)
+            new Offset(1, 0, 0.4375),   // 7/16
+            new Offset(-1, 1, 0.1875),  // 3/16
+            new Offset(0, 1, 0.3125),   // 5/16
+            new Offset(1, 1, 0.0625)    // 1/16
         };
 
         [StructLayout(LayoutKind.Explicit)]
@@ -61,9 +62,9 @@ namespace dither_that_image
         {
             public int X;
             public int Y;
-            public int C;
+            public double C;
 
-            public Offset(int x, int y, int c) : this()
+            public Offset(int x, int y, double c) : this()
             {
                 X = x;
                 Y = y;
@@ -86,16 +87,18 @@ namespace dither_that_image
 
         static void Diffuse(ArgbColor[,] pixels, Size size)
         {
+            Func<int, int, double, int> floydSteinberg = (offset, error, coeff) => (int)(offset + (error * coeff));
+
             for (int row = 0; row < size.Height; row++)
             {
                 for (int col = 0; col < size.Width; col++)
                 {
-                    ArgbColor current, transformed;
+                    var current = pixels[col, row];
 
-                    current = pixels[col, row];
-                    bool isBlack = (byte)(0.299 * current.R + 0.587 * current.G + 0.114 * current.B) < 127;
-                    transformed = isBlack ? new ArgbColor(current.A, 0, 0, 0) : new ArgbColor(current.A, 255, 255, 255);
-
+                    //https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
+                    double gray = 0.299 * current.R + 0.587 * current.G + 0.114 * current.B;
+                    
+                    var transformed = gray < 128 ? new ArgbColor(current.A, 0, 0, 0) : new ArgbColor(current.A, 255, 255, 255);
                     pixels[col, row] = transformed;
 
                     var errors = new
@@ -115,11 +118,11 @@ namespace dither_that_image
                         {
                             var offsetPixel = pixels[col + offset.X, row + offset.Y];
 
-                            int r = offsetPixel.R + (errors.R * offset.C / 16);
-                            int g = offsetPixel.G + (errors.G * offset.C / 16);
-                            int b = offsetPixel.B + (errors.B * offset.C / 16);
+                            int r = floydSteinberg(offsetPixel.R, errors.R, offset.C);
+                            int g = floydSteinberg(offsetPixel.G, errors.G, offset.C);
+                            int b = floydSteinberg(offsetPixel.B, errors.B, offset.C);
 
-                            pixels[col + offset.X, row + offset.Y] = new ArgbColor(offsetPixel.A, r, g, b);
+                            pixels[offsetX, offsetY] = new ArgbColor(offsetPixel.A, r, g, b);
                         }
                     }
                 }
