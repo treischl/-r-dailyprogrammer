@@ -1,33 +1,35 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
-using System;
 
 namespace dither_that_image
 {
     class Program
     {
+        const PixelFormat format = PixelFormat.Format32bppArgb;
+
         static void Main(string[] args)
         {
-            string pwd = Directory.GetCurrentDirectory();
-            string fileName = args[0];
+            var file = new FileInfo($"{Directory.GetCurrentDirectory()}\\{args[0]}");
 
-            using (var input = (Bitmap)Image.FromFile($"{pwd}\\{fileName}").Clone())
+            using (var input = (Bitmap)Image.FromFile(file.FullName))
+            using (var output = new Bitmap(input.Width, input.Height, format))
             {
-                var size = input.Size;
-                var pixels = GetPixels(input);
-                Diffuse(pixels, size);
-                SetPixels(input, pixels);
-                input.Save($"{pwd}\\dithered_{fileName}");
+                CopyImage(input, output);
+                var pixels = GetPixels(output);
+                Dither(pixels, output.Size);
+                SaveImage(pixels, file.FullName.Replace(file.Extension, $"_dithered{file.Extension}"));
             }
         }
 
-        static Offset[] offsets = new Offset[]
+        static Offset[] offsets { get; } = new Offset[]
         {
-            new Offset(1, 0, 0.4375),   // 7/16
-            new Offset(-1, 1, 0.1875),  // 3/16
-            new Offset(0, 1, 0.3125),   // 5/16
-            new Offset(1, 1, 0.0625)    // 1/16
+            new Offset() { X = 1, Y = 0, C = 7 },
+            new Offset() { X = -1, Y = 1, C = 3 },
+            new Offset() { X = 0, Y = 1, C = 5 },
+            new Offset() { X = 1, Y = 1, C = 1 }
         };
 
         [StructLayout(LayoutKind.Explicit)]
@@ -42,19 +44,12 @@ namespace dither_that_image
             [FieldOffset(3)]
             public byte A;
 
-            public ArgbColor(int a, int r, int g, int b) : this()
+            public ArgbColor(byte a, byte r, byte g, byte b) : this()
             {
-                A = (byte)a;
-                R = (byte)r;
-                G = (byte)g;
-                B = (byte)b;
-            }
-            public ArgbColor(Color color)
-            {
-                A = color.A;
-                R = color.R;
-                G = color.G;
-                B = color.B;
+                A = a;
+                R = r;
+                G = g;
+                B = b;
             }
         }
 
@@ -62,81 +57,79 @@ namespace dither_that_image
         {
             public int X;
             public int Y;
-            public double C;
+            public int C;
+        }
 
-            public Offset(int x, int y, double c) : this()
+        static void CopyImage(Bitmap original, Bitmap copy)
+        {
+            using (var graphics = Graphics.FromImage(copy))
             {
-                X = x;
-                Y = y;
-                C = c;
+                graphics.Clear(Color.Transparent);
+                graphics.PageUnit = GraphicsUnit.Pixel;
+                graphics.DrawImage(original, new Rectangle(Point.Empty, original.Size));
             }
         }
 
-        static ArgbColor[,] GetPixels(Bitmap bitmap)
+        unsafe static ArgbColor[,] GetPixels(Bitmap bitmap)
         {
             var pixels = new ArgbColor[bitmap.Width, bitmap.Height];
-            for (int w = 0; w < bitmap.Width; w++)
-            {
-                for (int h = 0; h < bitmap.Height; h++)
-                {
-                    pixels[w, h] = new ArgbColor(bitmap.GetPixel(w, h));
-                }
-            }
+            PixelyPixelFace(bitmap, ImageLockMode.WriteOnly, (x, y, ptr) => { pixels[x, y] = *ptr; });
             return pixels;
         }
 
-        static void Diffuse(ArgbColor[,] pixels, Size size)
+        unsafe static void SaveImage(ArgbColor[,] pixels, string savePath)
         {
-            Func<int, int, double, int> floydSteinberg = (offset, error, coeff) => (int)(offset + (error * coeff));
+            var bitmap = new Bitmap(pixels.GetLength(0), pixels.GetLength(1), format);
+            PixelyPixelFace(bitmap, ImageLockMode.ReadWrite, (x, y, ptr) => { *ptr = pixels[x, y]; });
+            bitmap.Save(savePath);
+        }
 
-            for (int row = 0; row < size.Height; row++)
+        unsafe delegate void PixelAction(int x, int y, ArgbColor* ptr);
+        unsafe static void PixelyPixelFace(Bitmap bitmap, ImageLockMode lockMode, PixelAction pixelAction)
+        {
+            int width = bitmap.Width;
+            int height = bitmap.Height;
+            var bitmapData = bitmap.LockBits(new Rectangle(Point.Empty, bitmap.Size), lockMode, format);
+            
+            var ptr = (ArgbColor*)bitmapData.Scan0;
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                    pixelAction(x, y, ptr++);
+
+            bitmap.UnlockBits(bitmapData);
+        }
+
+        static void Dither(ArgbColor[,] pixels, Size size)
+        {
+            Func<int, int, int, byte> floydSteinberg = (o, e, c) => (byte)(Math.Min(255, Math.Max(0, o + ((e * c) >> 4))));
+
+            for (int y = 0; y < size.Height; y++)
             {
-                for (int col = 0; col < size.Width; col++)
+                for (int x = 0; x < size.Width; x++)
                 {
-                    var current = pixels[col, row];
+                    var current = pixels[x, y];
+                    byte gray = (byte)(0.2126 * current.R + 0.7152 * current.G + 0.0722 * current.B); //https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
+                    byte bw = (byte)(gray < 128 ? 0 : 255);
+                    pixels[x, y] = new ArgbColor(current.A, bw, bw, bw);
 
-                    //https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
-                    double gray = 0.299 * current.R + 0.587 * current.G + 0.114 * current.B;
-                    
-                    var transformed = gray < 128 ? new ArgbColor(current.A, 0, 0, 0) : new ArgbColor(current.A, 255, 255, 255);
-                    pixels[col, row] = transformed;
-
-                    var errors = new
-                    {
-                        R = current.R - transformed.R,
-                        G = current.G - transformed.G,
-                        B = current.B - transformed.B
-                    };
+                    int error = gray - bw;
 
                     foreach (var offset in offsets)
                     {
-                        int offsetX = col + offset.X;
-                        int offsetY = row + offset.Y;
-
-                        if (0 <= offsetX && offsetX < size.Width &&
-                            0 <= offsetY && offsetY < size.Height)
+                        int offsetX = x + offset.X;
+                        int offsetY = y + offset.Y;
+                        
+                        if (0 < offsetX && offsetX < size.Width && 0 <= offsetY && offsetY < size.Height)
                         {
-                            var offsetPixel = pixels[col + offset.X, row + offset.Y];
+                            var offPx = pixels[offsetX, offsetY];
 
-                            int r = floydSteinberg(offsetPixel.R, errors.R, offset.C);
-                            int g = floydSteinberg(offsetPixel.G, errors.G, offset.C);
-                            int b = floydSteinberg(offsetPixel.B, errors.B, offset.C);
+                            byte r = floydSteinberg(offPx.R, error, offset.C);
+                            byte g = floydSteinberg(offPx.G, error, offset.C);
+                            byte b = floydSteinberg(offPx.B, error, offset.C);
 
-                            pixels[offsetX, offsetY] = new ArgbColor(offsetPixel.A, r, g, b);
+                            pixels[offsetX, offsetY] = new ArgbColor(offPx.A, r, g, b);
                         }
                     }
-                }
-            }
-        }
-
-        static void SetPixels(Bitmap bitmap, ArgbColor[,] pixels)
-        {
-            for (int w = 0; w < bitmap.Width; w++)
-            {
-                for (int h = 0; h < bitmap.Height; h++)
-                {
-                    var px = pixels[w, h];
-                    bitmap.SetPixel(w, h, Color.FromArgb(px.A, px.R, px.G, px.B));
                 }
             }
         }
